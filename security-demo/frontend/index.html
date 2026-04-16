@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Security Demo — Chapter 3.1 & 3.2</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3347;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --blue: #4f8ef7;
+      --blue-bg: rgba(79,142,247,0.1);
+      --green: #34d399;
+      --green-bg: rgba(52,211,153,0.1);
+      --red: #f87171;
+      --red-bg: rgba(248,113,113,0.1);
+      --yellow: #fbbf24;
+      --yellow-bg: rgba(251,191,36,0.1);
+      --purple: #a78bfa;
+      --purple-bg: rgba(167,139,250,0.1);
+      --radius: 8px;
+      --mono: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .status-bar { display: flex; align-items: center; gap: 10px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+    .status-dot.online { background: var(--green); }
+    .status-text { font-size: 12px; color: var(--muted); }
+
+    .user-pill {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px 4px 6px;
+      font-size: 12px;
+    }
+    .user-pill.visible { display: flex; }
+    .user-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--blue);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 220px 1fr 320px;
+      gap: 0;
+      height: calc(100vh - 53px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+    .sidebar-section { margin-bottom: 4px; }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 8px 16px 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { color: var(--blue); border-left-color: var(--blue); background: var(--blue-bg); }
+    .nav-icon { font-size: 14px; width: 16px; text-align: center; }
+    .nav-badge {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--surface2);
+      color: var(--muted);
+    }
+    .nav-badge.admin { background: var(--purple-bg); color: var(--purple); }
+
+    /* ── Content ── */
+    .content {
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--bg);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .panel-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .panel-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 12px;
+    }
+
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus { border-color: var(--blue); }
+    select option { background: var(--surface2); }
+
+    button {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    button:hover { opacity: .9; }
+    button:active { transform: scale(.98); }
+    button.secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.danger { background: var(--red); }
+    button.success { background: var(--green); color: #000; }
+    button.full { width: 100%; margin-bottom: 8px; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .token-display {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      word-break: break-all;
+      color: var(--muted);
+      line-height: 1.6;
+      min-height: 40px;
+    }
+    .token-display .part-header { color: #f87171; }
+    .token-display .part-payload { color: #34d399; }
+    .token-display .part-sig { color: #fbbf24; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      margin: 2px;
+    }
+    .badge-blue { background: var(--blue-bg); color: var(--blue); }
+    .badge-green { background: var(--green-bg); color: var(--green); }
+    .badge-red { background: var(--red-bg); color: var(--red); }
+    .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-purple { background: var(--purple-bg); color: var(--purple); }
+
+    .result-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      min-height: 50px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .result-box.ok { border-color: #34d39940; color: var(--green); }
+    .result-box.err { border-color: #f8717140; color: var(--red); }
+    .result-box.info { border-color: #4f8ef740; color: var(--blue); }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .flow-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .flow-arrow { color: var(--muted); font-size: 13px; }
+
+    .step-list { list-style: none; }
+    .step-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--muted);
+      transition: color .3s;
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-item.done { color: var(--green); }
+    .step-item.active-step { color: var(--yellow); }
+    .step-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; flex-shrink: 0; margin-top: 1px;
+    }
+    .step-item.done .step-num { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+    .step-item.active-step .step-num { background: var(--yellow-bg); border-color: var(--yellow); color: var(--yellow); }
+
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    /* ── Log Panel ── */
+    .log-panel {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .log-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .log-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .log-clear { font-size: 11px; color: var(--muted); cursor: pointer; background: none; padding: 3px 8px; }
+    .log-clear:hover { color: var(--red); }
+    .log-body { flex: 1; overflow-y: auto; padding: 8px; }
+    .log-entry {
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.5;
+      padding: 5px 8px;
+      border-radius: 5px;
+      margin-bottom: 4px;
+      border-left: 2px solid transparent;
+    }
+    .log-entry.req { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+    .log-entry.ok  { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .log-entry.err { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .log-entry.info { border-color: var(--muted); color: var(--muted); }
+    .log-time { opacity: .6; margin-right: 6px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">🔐 Security Demo</div>
+    <div class="header-sub">Chapter 3.1 Application Security · 3.2 Full Stack Integration</div>
+  </div>
+  <div class="status-bar">
+    <div>
+      <div id="status-dot" class="status-dot"></div>
+    </div>
+    <span id="status-text" class="status-text">Connecting to backend...</span>
+    <div id="user-pill" class="user-pill">
+      <div id="user-avatar" class="user-avatar">?</div>
+      <span id="user-name"></span>
+      <span id="user-role" class="badge badge-blue"></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Chapter 3.1</div>
+      <div class="nav-item active" onclick="showPanel('login')">
+        <span class="nav-icon">🔑</span> Login (AuthN)
+      </div>
+      <div class="nav-item" onclick="showPanel('jwt')">
+        <span class="nav-icon">🪙</span> JWT Inspector
+      </div>
+      <div class="nav-item" onclick="showPanel('rbac')">
+        <span class="nav-icon">🛡️</span> RBAC Demo
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Chapter 3.2</div>
+      <div class="nav-item" onclick="showPanel('cors')">
+        <span class="nav-icon">🌐</span> CORS Demo
+      </div>
+      <div class="nav-item" onclick="showPanel('interceptor')">
+        <span class="nav-icon">⚡</span> Axios Interceptors
+      </div>
+      <div class="nav-item" onclick="showPanel('refresh')">
+        <span class="nav-icon">🔄</span> Refresh Token Flow
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Test Users</div>
+      <div class="nav-item" onclick="quickLogin('alice','ADMIN')">
+        <span class="nav-icon">👤</span> alice
+        <span class="nav-badge admin">ADMIN</span>
+      </div>
+      <div class="nav-item" onclick="quickLogin('bob','USER')">
+        <span class="nav-icon">👤</span> bob
+        <span class="nav-badge">USER</span>
+      </div>
+      <div class="nav-item" onclick="quickLogin('carol','MODERATOR')">
+        <span class="nav-icon">👤</span> carol
+        <span class="nav-badge">MOD</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Content ── -->
+  <div class="content">
+
+    <!-- Login Panel -->
+    <div id="panel-login" class="panel active">
+      <div class="panel-title">Authentication (AuthN)</div>
+      <div class="panel-desc">POST /auth/login — Spring Security's AuthenticationManager verifies credentials, then we generate a JWT pair.</div>
+      <div class="card">
+        <div class="card-title">Login Form</div>
+        <div class="form-group">
+          <label>Username</label>
+          <input id="login-user" type="text" value="alice" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input id="login-pass" type="password" value="password123" />
+        </div>
+        <button class="full" onclick="doLogin()">Login → get JWT</button>
+        <button class="full secondary" onclick="doLogout()">Logout (clear tokens)</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Auth Response</div>
+        <div id="login-result" class="result-box">Response will appear here after login...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Filter Chain Flow</div>
+        <div class="flow-row">
+          <div class="flow-box">POST /auth/login</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">permitAll()</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">AuthManager.authenticate()</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">Generate JWT pair</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">200 OK</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JWT Inspector Panel -->
+    <div id="panel-jwt" class="panel">
+      <div class="panel-title">JWT Inspector</div>
+      <div class="panel-desc">A JWT is three Base64URL-encoded JSON objects joined by dots: Header.Payload.Signature. Paste a token below to decode it live.</div>
+      <div class="card">
+        <div class="card-title">Token (from login above, or paste any JWT)</div>
+        <div class="form-group">
+          <label>Raw JWT</label>
+          <input id="jwt-input" type="text" placeholder="eyJhbGciOiJIUzI1NiJ9..." oninput="decodeJwt()" />
+        </div>
+        <button class="full secondary" onclick="loadCurrentToken()">Load current access token</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Decoded — <span class="badge badge-red">Header</span> <span class="badge badge-green">Payload</span> <span class="badge badge-yellow">Signature</span></div>
+        <div id="jwt-decoded" class="result-box">Paste a JWT above to decode...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Validation via Backend (POST /auth/validate)</div>
+        <button class="full" onclick="validateToken()">Validate with Spring (signature check)</button>
+        <div id="jwt-valid-result" class="result-box" style="margin-top:10px;">—</div>
+      </div>
+    </div>
+
+    <!-- RBAC Panel -->
+    <div id="panel-rbac" class="panel">
+      <div class="panel-title">RBAC — @PreAuthorize</div>
+      <div class="panel-desc">These endpoints are protected by @PreAuthorize. Try them logged in as different users to see 200 vs 403 responses.</div>
+
+      <div class="card">
+        <div class="card-title">Current User</div>
+        <div id="rbac-user" class="result-box">Not logged in</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Endpoint Tests</div>
+        <div class="btn-row" style="margin-bottom:10px;">
+          <button onclick="callApi('GET','/public/hello','public')" class="secondary">GET /public/hello <span class="badge badge-green">permitAll</span></button>
+          <button onclick="callApi('GET','/api/profile','profile')">GET /api/profile <span class="badge badge-blue">authenticated</span></button>
+        </div>
+        <div class="btn-row" style="margin-bottom:10px;">
+          <button onclick="callApi('GET','/api/user/dashboard','user')">GET /api/user/dashboard <span class="badge badge-blue">USER+</span></button>
+          <button onclick="callApi('GET','/api/moderator/posts','mod')">GET /api/moderator/posts <span class="badge badge-yellow">MOD+</span></button>
+        </div>
+        <div class="btn-row">
+          <button onclick="callApi('GET','/api/admin/users','admin')" class="danger">GET /api/admin/users <span class="badge badge-red">ADMIN only</span></button>
+          <button onclick="callApi('DELETE','/api/admin/users/testuser','admin-del')" class="danger">DELETE /api/admin/users/testuser</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Response</div>
+        <div id="rbac-result" class="result-box">Call an endpoint above...</div>
+      </div>
+    </div>
+
+    <!-- CORS Panel -->
+    <div id="panel-cors" class="panel">
+      <div class="panel-title">CORS — Cross-Origin Resource Sharing</div>
+      <div class="panel-desc">This HTML file runs from a different origin than the Spring server (localhost:8080). Without CORS headers, the browser would block these requests.</div>
+      <div class="card">
+        <div class="card-title">What Spring sends back (Open DevTools → Network to see headers)</div>
+        <div class="flow-row">
+          <div class="flow-box">Browser (file://)</div>
+          <span class="flow-arrow">→ OPTIONS preflight</span>
+          <div class="flow-box">Spring :8080</div>
+          <span class="flow-arrow">→ 200 + headers</span>
+          <div class="flow-box">Browser allows request</div>
+        </div>
+        <div class="result-box info" style="margin-top:10px; font-size:11px;">
+Access-Control-Allow-Origin: *  (or specific origin)
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Headers: *
+Access-Control-Allow-Credentials: true
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Test CORS — Live Preflight</div>
+        <button class="full" onclick="testCors()">Send request → inspect CORS headers in Log</button>
+        <div id="cors-result" class="result-box" style="margin-top:10px;">—</div>
+      </div>
+      <div class="card">
+        <div class="card-title">CorsConfigurationSource bean in SecurityConfig.java</div>
+        <div class="result-box info" style="font-size:11px;">
+config.setAllowedOrigins(List.of("http://localhost:3000", "null"));
+config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+config.setAllowedHeaders(List.of("*"));
+config.setAllowCredentials(true);
+        </div>
+      </div>
+    </div>
+
+    <!-- Interceptor Panel -->
+    <div id="panel-interceptor" class="panel">
+      <div class="panel-title">Axios Interceptors</div>
+      <div class="panel-desc">Request interceptors attach the JWT automatically. Response interceptors catch 401/403 errors globally so every API call doesn't need its own error handling.</div>
+      <div class="card">
+        <div class="card-title">Simulate Scenarios</div>
+        <button class="full" onclick="simInterceptor('valid')">✓ Request WITH valid JWT (automatic header injection)</button>
+        <button class="full secondary" onclick="simInterceptor('no-token')">✗ Request with NO token → 401 response</button>
+        <button class="full secondary" onclick="simInterceptor('bad-token')">✗ Request with TAMPERED token → 401 response</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Interceptor Trace</div>
+        <div id="interceptor-result" class="result-box">Pick a scenario above...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">api.js — Axios instance (see frontend/api.js)</div>
+        <div class="result-box info" style="font-size:11px;">
+// Request interceptor — attaches JWT
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('accessToken');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Response interceptor — handles 401
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      // Try refresh or redirect to login
+    }
+    return Promise.reject(error);
+  }
+);
+        </div>
+      </div>
+    </div>
+
+    <!-- Refresh Panel -->
+    <div id="panel-refresh" class="panel">
+      <div class="panel-title">Refresh Token Flow</div>
+      <div class="panel-desc">When the access token expires, the Axios interceptor silently requests a new one using the refresh token — without the user noticing.</div>
+      <div class="card">
+        <div class="card-title">Animated Flow Simulation</div>
+        <button class="full" onclick="runRefreshFlow()">▶ Simulate: Access Token Expired → Refresh → Retry</button>
+        <ul id="flow-steps" class="step-list" style="margin-top:14px;"></ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Test Real Refresh Endpoint</div>
+        <button class="full" onclick="callRefreshEndpoint()">POST /auth/refresh (with stored refresh token)</button>
+        <div id="refresh-result" class="result-box" style="margin-top:10px;">—</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ── Log Panel ── -->
+  <div class="log-panel">
+    <div class="log-header">
+      <span class="log-title">📡 Request Log</span>
+      <button class="log-clear" onclick="clearLog()">Clear</button>
+    </div>
+    <div class="log-body" id="log-body"></div>
+  </div>
+</main>
+
+<script src="api.js"></script>
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let accessToken = localStorage.getItem('accessToken') || null;
+let refreshToken = localStorage.getItem('refreshToken') || null;
+let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'jwt' && accessToken) loadCurrentToken();
+  if (name === 'rbac') updateRbacUser();
+}
+
+// ── Status ───────────────────────────────────────────────────────────────────
+async function checkBackend() {
+  try {
+    await api.get('/public/hello');
+    document.getElementById('status-dot').classList.add('online');
+    document.getElementById('status-text').textContent = 'Backend online :8080';
+    log('info', 'Backend connected at http://localhost:8080');
+  } catch {
+    document.getElementById('status-text').textContent = 'Backend offline — start Spring Boot!';
+    log('err', 'Cannot reach backend. Run SecurityDemoApplication.java first.');
+  }
+}
+
+function updateHeader() {
+  const pill = document.getElementById('user-pill');
+  if (currentUser) {
+    pill.classList.add('visible');
+    document.getElementById('user-name').textContent = currentUser.username;
+    document.getElementById('user-avatar').textContent = currentUser.username[0].toUpperCase();
+    const role = (currentUser.roles[0] || 'USER').replace('ROLE_', '');
+    document.getElementById('user-role').textContent = role;
+  } else {
+    pill.classList.remove('visible');
+  }
+}
+
+// ── Login ────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const username = document.getElementById('login-user').value;
+  const password = document.getElementById('login-pass').value;
+  log('req', `POST /auth/login { username: "${username}" }`);
+  try {
+    const res = await api.post('/auth/login', { username, password });
+    accessToken = res.data.accessToken;
+    refreshToken = res.data.refreshToken;
+    currentUser = { username: res.data.username, roles: res.data.roles };
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    updateHeader();
+    const display = {
+      username: res.data.username,
+      roles: res.data.roles,
+      tokenType: res.data.tokenType,
+      accessToken: accessToken.substring(0, 50) + '...',
+      refreshToken: refreshToken.substring(0, 50) + '...'
+    };
+    showResult('login-result', 'ok', '200 OK\n\n' + JSON.stringify(display, null, 2));
+    log('ok', `✓ Logged in as ${res.data.username} [${res.data.roles.join(', ')}]`);
+  } catch (e) {
+    const msg = e.response?.data?.error || e.message;
+    showResult('login-result', 'err', `${e.response?.status || 'Error'}: ${msg}`);
+    log('err', `✗ Login failed: ${msg}`);
+  }
+}
+
+function doLogout() {
+  accessToken = null; refreshToken = null; currentUser = null;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('currentUser');
+  updateHeader();
+  showResult('login-result', 'info', 'Logged out. Tokens cleared from localStorage.\n(JWT is stateless — server does not need to be notified)');
+  log('info', 'Logged out — tokens cleared');
+}
+
+function quickLogin(user, role) {
+  document.getElementById('login-user').value = user;
+  document.getElementById('login-pass').value = 'password123';
+  showPanel({ currentTarget: document.querySelector('.nav-item') }, 'login');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-login').classList.add('active');
+  document.querySelector('.nav-item').classList.add('active');
+  doLogin();
+}
+
+// ── JWT Inspector ─────────────────────────────────────────────────────────────
+function loadCurrentToken() {
+  const t = localStorage.getItem('accessToken') || '';
+  document.getElementById('jwt-input').value = t;
+  decodeJwt();
+}
+
+function decodeJwt() {
+  const token = document.getElementById('jwt-input').value.trim();
+  if (!token) { document.getElementById('jwt-decoded').textContent = 'Enter a JWT...'; return; }
+  const parts = token.split('.');
+  if (parts.length !== 3) { showResult('jwt-decoded', 'err', 'Not a valid JWT — must have 3 parts separated by dots'); return; }
+  try {
+    const header  = JSON.parse(atob(parts[0].replace(/-/g,'+').replace(/_/g,'/')));
+    const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if (payload.exp) payload._expires = new Date(payload.exp * 1000).toLocaleString();
+    if (payload.iat) payload._issuedAt = new Date(payload.iat * 1000).toLocaleString();
+    const out = `HEADER  (algorithm + token type)\n${JSON.stringify(header, null, 2)}\n\nPAYLOAD (claims — username, roles, timestamps)\n${JSON.stringify(payload, null, 2)}\n\nSIGNATURE\n${parts[2]}\n(verified server-side with the secret key)`;
+    showResult('jwt-decoded', 'ok', out);
+  } catch(e) { showResult('jwt-decoded', 'err', 'Could not decode: ' + e.message); }
+}
+
+async function validateToken() {
+  const token = document.getElementById('jwt-input').value.trim();
+  if (!token) { showResult('jwt-valid-result', 'err', 'No token to validate'); return; }
+  log('req', 'GET /api/profile (validates token server-side)');
+  try {
+    const res = await axios.get('http://localhost:8080/api/profile', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    showResult('jwt-valid-result', 'ok', '✓ Token is VALID — server accepted it\n\n' + JSON.stringify(res.data, null, 2));
+    log('ok', '✓ Token validated by Spring');
+  } catch(e) {
+    showResult('jwt-valid-result', 'err', `✗ Token REJECTED by server\nStatus: ${e.response?.status}\n${JSON.stringify(e.response?.data, null, 2)}`);
+    log('err', `✗ Token invalid: ${e.response?.status}`);
+  }
+}
+
+// ── RBAC ─────────────────────────────────────────────────────────────────────
+function updateRbacUser() {
+  if (currentUser) {
+    showResult('rbac-user', 'ok', `Logged in as: ${currentUser.username}\nRoles: ${currentUser.roles.join(', ')}`);
+  } else {
+    showResult('rbac-user', 'err', 'Not logged in — login first to test RBAC');
+  }
+}
+
+async function callApi(method, path, resultId) {
+  log('req', `${method} ${path}`);
+  try {
+    const res = await api({ method, url: path });
+    showResult('rbac-result', 'ok', `${method} ${path}\n→ 200 OK\n\n${JSON.stringify(res.data, null, 2)}`);
+    log('ok', `✓ ${method} ${path} → 200`);
+  } catch(e) {
+    const status = e.response?.status;
+    const data = e.response?.data;
+    showResult('rbac-result', 'err', `${method} ${path}\n→ ${status} ${status===403?'Forbidden':status===401?'Unauthorized':'Error'}\n\n${JSON.stringify(data, null, 2)}`);
+    log('err', `✗ ${method} ${path} → ${status}`);
+  }
+}
+
+// ── CORS ──────────────────────────────────────────────────────────────────────
+async function testCors() {
+  log('req', 'GET /public/hello (cross-origin from file:// → localhost:8080)');
+  try {
+    const res = await api.get('/public/hello');
+    showResult('cors-result', 'ok', `✓ CORS succeeded!\n\nResponse: ${JSON.stringify(res.data, null, 2)}\n\nThe browser received Access-Control-Allow-Origin header.\nOpen DevTools → Network → click this request to see headers.`);
+    log('ok', '✓ CORS allowed — see Network tab for response headers');
+  } catch(e) {
+    showResult('cors-result', 'err', `✗ CORS blocked or backend offline\n${e.message}`);
+    log('err', '✗ CORS failed — check SecurityConfig.corsConfigurationSource()');
+  }
+}
+
+// ── Interceptors ──────────────────────────────────────────────────────────────
+async function simInterceptor(scenario) {
+  if (scenario === 'valid') {
+    if (!accessToken) { showResult('interceptor-result', 'err', 'No token — login first!'); return; }
+    log('req', 'GET /api/profile (interceptor injects Authorization header)');
+    try {
+      const res = await api.get('/api/profile');
+      showResult('interceptor-result', 'ok',
+        `→ Request interceptor ran:\n  Added: Authorization: Bearer ${accessToken.substring(0,30)}...\n\n→ Server response 200 OK:\n${JSON.stringify(res.data, null, 2)}`);
+      log('ok', '✓ JWT auto-attached by request interceptor');
+    } catch(e) { showResult('interceptor-result', 'err', e.message); }
+  } else if (scenario === 'no-token') {
+    log('req', 'GET /api/profile (no Authorization header)');
+    try {
+      const res = await axios.get('http://localhost:8080/api/profile'); // bypass our api instance
+      showResult('interceptor-result', 'ok', JSON.stringify(res.data));
+    } catch(e) {
+      showResult('interceptor-result', 'err',
+        `→ No token in request\n→ JwtAuthFilter: no Bearer header, skipped\n→ @PreAuthorize: no Authentication in context\n→ Server: ${e.response?.status} Unauthorized\n\n${JSON.stringify(e.response?.data, null, 2)}\n\n→ Response interceptor: would redirect to /login`);
+      log('err', `✗ 401 — no token provided`);
+    }
+  } else {
+    log('req', 'GET /api/profile (tampered token)');
+    try {
+      const res = await axios.get('http://localhost:8080/api/profile', {
+        headers: { Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.TAMPERED.invalidsig' }
+      });
+    } catch(e) {
+      showResult('interceptor-result', 'err',
+        `→ Tampered token sent\n→ JwtAuthFilter: validateToken() → false (signature mismatch)\n→ SecurityContext: no Authentication set\n→ Server: ${e.response?.status} Unauthorized\n\n${JSON.stringify(e.response?.data, null, 2)}`);
+      log('err', `✗ 401 — tampered token rejected by Spring`);
+    }
+  }
+}
+
+// ── Refresh Flow ──────────────────────────────────────────────────────────────
+async function runRefreshFlow() {
+  const steps = [
+    { text: 'GET /api/profile called by component', type: '' },
+    { text: 'Request interceptor: attach access token (expired)', type: '' },
+    { text: 'Spring JwtAuthFilter: token expired → 401 Unauthorized', type: '' },
+    { text: 'Response interceptor catches 401, sets _retry = true', type: '' },
+    { text: 'POST /auth/refresh with refresh token...', type: '' },
+    { text: 'Spring validates refresh token → new access token issued', type: '' },
+    { text: 'New access token saved to localStorage', type: '' },
+    { text: 'Original GET /api/profile retried with new token', type: '' },
+    { text: '✓ 200 OK — user never saw an error!', type: '' },
+  ];
+  const list = document.getElementById('flow-steps');
+  list.innerHTML = steps.map((s,i) => `<li class="step-item" id="step-${i}"><div class="step-num">${i+1}</div><span>${s.text}</span></li>`).join('');
+
+  for (let i = 0; i < steps.length; i++) {
+    await new Promise(r => setTimeout(r, 600));
+    if (i > 0) document.getElementById(`step-${i-1}`).className = 'step-item done';
+    document.getElementById(`step-${i}`).className = 'step-item active-step';
+    log(i === steps.length-1 ? 'ok' : 'req', steps[i].text);
+  }
+  document.getElementById(`step-${steps.length-1}`).className = 'step-item done';
+}
+
+async function callRefreshEndpoint() {
+  const rt = localStorage.getItem('refreshToken');
+  if (!rt) { showResult('refresh-result', 'err', 'No refresh token — login first!'); return; }
+  log('req', 'POST /auth/refresh');
+  try {
+    const res = await axios.post('http://localhost:8080/auth/refresh', { refreshToken: rt });
+    accessToken = res.data.accessToken;
+    localStorage.setItem('accessToken', accessToken);
+    showResult('refresh-result', 'ok', `✓ New access token issued!\n\n${JSON.stringify(res.data, null, 2)}\n\nNew token saved to localStorage.`);
+    log('ok', '✓ Token refreshed successfully');
+  } catch(e) {
+    showResult('refresh-result', 'err', `✗ Refresh failed: ${e.response?.status}\n${JSON.stringify(e.response?.data, null, 2)}`);
+    log('err', `✗ Refresh failed: ${e.response?.status}`);
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showResult(id, type, text) {
+  const el = document.getElementById(id);
+  el.className = 'result-box ' + (type === 'ok' ? 'ok' : type === 'err' ? 'err' : 'info');
+  el.textContent = text;
+}
+
+function log(type, msg) {
+  const body = document.getElementById('log-body');
+  const time = new Date().toLocaleTimeString('en', { hour12: false });
+  const div = document.createElement('div');
+  div.className = 'log-entry ' + type;
+  div.innerHTML = `<span class="log-time">${time}</span>${msg}`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('log-body').innerHTML = '';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateHeader();
+checkBackend();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+server:
+  port: 8080
+
+app:
+  jwt:
+    # ⚠️  CLASSROOM ONLY — use a long random secret in production!
+    secret: "classroom-super-secret-key-must-be-at-least-256-bits-long-for-HS256"
+    expiration-ms: 86400000       # 24 hours (access token)
+    refresh-expiration-ms: 604800000  # 7 days  (refresh token)
+
+spring:
+  main:
+    banner-mode: off
+
+logging:
+  level:
+    com.classroom: DEBUG           # see all our debug logs in IntelliJ console
+    org.springframework.security: INFO
