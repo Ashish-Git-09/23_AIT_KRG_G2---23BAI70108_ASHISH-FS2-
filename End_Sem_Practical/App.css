@@ -1,0 +1,84 @@
+/* Gradient background */
+.app {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* Glass container */
+.glass-container {
+  width: 320px;
+  padding: 25px;
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  color: white;
+  text-align: center;
+}
+
+/* Heading */
+.heading {
+  margin-bottom: 20px;
+}
+
+/* List */
+.glass-list {
+  list-style: none;
+  padding: 0;
+}
+
+/* Items */
+.glass-item {
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  transition: 0.3s;
+}
+
+.glass-item:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+/* Buttons */
+.glass-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 20px;
+  background: white;
+  color: #333;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.glass-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  background: #f1f1f1;
+}
+
+/* Disabled */
+.glass-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Page badge */
+.page-badge {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+}
